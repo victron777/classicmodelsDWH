@@ -37,8 +37,16 @@ def load_dims_facts(slice: str):
 
     # Load dim_customers
     print("Loading dim_customers on slice {}".format(slice))
+
+    # Truncate table dim_customers_stg
     query = """
-    INSERT INTO classicmodelsDWH.dim_customers (customernumber, customername, contactLastName, contactFirstName, phone, employeeNumber, emp_lastname, emp_firstname, ds)(
+    TRUNCATE TABLE classicmodelsDWH.dim_customers_stg
+    """
+    cursor.execute(query)
+
+    # Load dim_customers_stg
+    query = """
+    INSERT INTO classicmodelsDWH.dim_customers_stg (customernumber, customername, contactLastName, contactFirstName, phone, employeeNumber, emp_lastname, emp_firstname, ds)(
     select 	c.customernumber,
             c.customername,
             c.contactLastName,
@@ -60,6 +68,48 @@ def load_dims_facts(slice: str):
     )  
     """
     cursor.execute(query, (slice,))
+
+    # SCD Type 2 - Update old records
+    query = """
+    UPDATE classicmodelsDWH.dim_customers
+    INNER JOIN classicmodelsDWH.dim_customers_stg ON(classicmodelsDWH.dim_customers.customernumber = classicmodelsDWH.dim_customers_stg.customernumber)
+    SET 
+    classicmodelsDWH.dim_customers.end_date = CASE
+        WHEN (classicmodelsDWH.dim_customers.phone <> classicmodelsDWH.dim_customers_stg.phone OR
+             classicmodelsDWH.dim_customers.employeenumber <> classicmodelsDWH.dim_customers_stg.employeenumber OR
+             classicmodelsDWH.dim_customers.emp_lastname <> classicmodelsDWH.dim_customers_stg.emp_lastname OR
+             classicmodelsDWH.dim_customers.emp_firstname <> classicmodelsDWH.dim_customers_stg.emp_firstname) THEN now()
+        ELSE classicmodelsDWH.dim_customers.end_date
+        END,
+    classicmodelsDWH.dim_customers.active = CASE
+        WHEN (classicmodelsDWH.dim_customers.phone <> classicmodelsDWH.dim_customers_stg.phone OR
+             classicmodelsDWH.dim_customers.employeenumber <> classicmodelsDWH.dim_customers_stg.employeenumber OR
+             classicmodelsDWH.dim_customers.emp_lastname <> classicmodelsDWH.dim_customers_stg.emp_lastname OR
+             classicmodelsDWH.dim_customers.emp_firstname <> classicmodelsDWH.dim_customers_stg.emp_firstname) THEN 0
+        ELSE 1
+        END
+    """
+    cursor.execute(query)
+
+    # SCD Type 2 - Insert new records
+    query = """
+    INSERT INTO classicmodelsDWH.dim_customers (customernumber, customername, contactLastName, contactFirstName, phone, employeenumber, emp_lastname, emp_firstname, ds, start_date, end_date, active)
+    SELECT 	cstg.customernumber, cstg.customername, cstg.contactLastName, cstg.contactFirstName, cstg.phone, cstg.employeenumber, cstg.emp_lastname, cstg.emp_firstname, cstg.ds,
+            now() ,STR_TO_DATE('9999-12-12','%Y-%m-%dT%H:%i:%s'), 1 
+    FROM 	classicmodelsDWH.dim_customers_stg cstg 
+            left join classicmodelsDWH.dim_customers c
+                    on(cstg.customernumber = c.customernumber)
+    where 	c.customernumber is null OR
+            (c.customernumber is not null AND
+                (
+                c.phone <> cstg.phone OR
+                c.employeenumber <> cstg.employeenumber OR
+                c.emp_lastname <> cstg.emp_lastname OR
+                c.emp_firstname <> cstg.emp_firstname
+                )
+            )
+    """
+    cursor.execute(query)
 
     # Load fact_orders
     print("Loading fact_orders on slice {}".format(slice))
