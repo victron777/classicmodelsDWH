@@ -25,9 +25,34 @@ def readDB_writeJson(table, filter):
     with open(path_file, "w") as write_file:
         json.dump(result, write_file)
 
+def db_to_csv(table):
+    cursor = connection.cursor()
+    query = "select * from {}".format(table)
+    cursor.execute(query)
+    headers = [col[0] for col in cursor.description]
+    rows = cursor.fetchall()
+    print(headers)
 
-readDB_writeJson("classicmodels.orders", (10100, 10101, 10102))
-readDB_writeJson("classicmodels.orderdetails", (10100, 10101, 10102))
+    path_file = "/home/victor/IdeaProjects/classicmodelsDWH/classicModelsDWH_RealTime/resources/{}.csv".format(table.split(".")[1])
+    f = open(path_file, 'w')
+
+    f.write(','.join(headers) + '\n')
+
+    # for row in rows:
+    #     print(','.join(str(r) for r in row))
+    for row in rows:
+        f.write(','.join(str(r) for r in row) + '\n')
+
+    f.close()
+
+    print("rows: {} written succesfully to file:{}".format(len(rows), f.name))
+
+
+db_to_csv("classicmodels.products")
+db_to_csv("classicmodels.customers")
+db_to_csv("classicmodelsDWH.dim_time")
+# readDB_writeJson("classicmodels.orders", (10100, 10101, 10102))
+# readDB_writeJson("classicmodels.orderdetails", (10100, 10101, 10102))
 
 
 connection.close()

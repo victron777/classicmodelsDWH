@@ -2,7 +2,7 @@ from mysql import connector as mc
 
 
 def load_dims_facts(slice: str):
-    print('Load Type: historical Current slice: {}'.format(slice))
+    print('Load Type: by_slice Current slice: {}'.format(slice))
     # Connecting to DB
     connection = mc.connect(user='root',
                             password='admin123',
@@ -63,13 +63,13 @@ def load_dims_facts(slice: str):
                 on( c.customernumber = o.customernumber)
             left join classicmodelsDWH.dim_customers as dc
                 on( c.customernumber = dc.customernumber )
-    where 	o.orderdate = %s and
-            dc.customernumber is null
+    where 	o.orderdate = %s 
     )  
     """
+    # and dc.customernumber is null
     cursor.execute(query, (slice,))
 
-    # SCD Type 2 - Update old records
+    # SCD Type 2 - Update existing records
     query = """
     UPDATE classicmodelsDWH.dim_customers
     INNER JOIN classicmodelsDWH.dim_customers_stg ON(classicmodelsDWH.dim_customers.customernumber = classicmodelsDWH.dim_customers_stg.customernumber)
