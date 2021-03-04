@@ -4,38 +4,34 @@ import json
 with open("/home/victor/IdeaProjects/classicmodelsDWH/classicModelsDWH_RealTime/resources/orderdetails.json", "r") as read_file:
     orderdetails = json.load(read_file)
 
-# print(data[0]["orderNumber"])
-#
-
-# for row in data:
-#     print(row)
-
-d={}
+orderdetails_raw={}
 for row in orderdetails:
     # print(row)
     # print(row['orderNumber'])
-    if row["orderNumber"] not in d:
-        d[row["orderNumber"]] = []
-        d[row["orderNumber"]].append(int(row["quantityOrdered"])*float(row["priceEach"]))
+    if row["orderNumber"] not in orderdetails_raw:
+        orderdetails_raw[row["orderNumber"]] = []
+        orderdetails_raw[row["orderNumber"]].append(int(row["quantityOrdered"])*float(row["priceEach"]))
     else:
-        d[row["orderNumber"]].append(int(row["quantityOrdered"])*float(row["priceEach"]))
+        orderdetails_raw[row["orderNumber"]].append(int(row["quantityOrdered"])*float(row["priceEach"]))
 
-print(d)
+print("orderdetails_raw: ",orderdetails_raw)
 # print(d['10100'])
 # print(round(sum(d['10100']),2))
+#
+orderdetails_agg = {}
+for row in orderdetails_raw:
+    orderdetails_agg[row] = {"orderNumber": row, "total_amount": round(sum(orderdetails_raw[row]),2), "avg_amount": round(sum(orderdetails_raw[row])/len(orderdetails_raw[row]),2)}
 
-result = {}
-for row in d:
-    result[row] = {"orderNumber": row, "total_amount": round(sum(d[row]),2), "avg_amount": round(sum(d[row])/len(d[row]),2)}
-
-print(result, '\n')
-# print(result['10100']["orderNumber"], result['10100']["total_amount"])
-
+print("orderdetails_agg: ",orderdetails_agg, '\n')
+# # print(result['10100']["orderNumber"], result['10100']["total_amount"])
+#
 with open("/home/victor/IdeaProjects/classicmodelsDWH/classicModelsDWH_RealTime/resources/orders.json", "r") as read_file:
-    orders = json.load(read_file)
+    orders_raw = json.load(read_file)
 
-for order in orders:
+print("orders join orderdetails: ")
+for order in orders_raw:
     # print(order)
-    print(order, ' -> ', result[order["orderNumber"]])
+    # join_result = dict(order, orderdetails_agg[order["orderNumber"]])
+    print(order, ' -> ', orderdetails_agg[order["orderNumber"]])
 
 

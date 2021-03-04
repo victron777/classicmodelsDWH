@@ -1,25 +1,29 @@
 from mysql import connector as mc
 import json
+import csv
 
 connection = mc.connect(user='root',
                         password='admin123',
                         host='localhost',
                         port='3307')
 
-def readDB_writeJson(table, filter):
+def readDB_writeJson(table, filter, limit=0):
     cursor = connection.cursor()
     print(table)
     filter_string = ','.join(str(v) for v in filter)
-    query = "select * from {} where ordernumber in ({})".format(table, filter_string)
+    if limit > 0:
+        query = "select * from {} where ordernumber in ({})".format(table, filter_string)
+    else:
+        query = "select * from {}".format(table)
     cursor.execute(query)
     columns = cursor.description
     # print(columns[0][0])
     result = [{columns[index][0]:str(column) for index, column in enumerate(value)} for value in cursor.fetchall()]
 
-    print(result)
+    # print(result)
     # write = []
     # for row in result:
-        # print(json.dumps(row))
+    # print(json.dumps(row))
 
     path_file = "/home/victor/IdeaProjects/classicmodelsDWH/classicModelsDWH_RealTime/resources/{}.json".format(table.split(".")[1])
     with open(path_file, "w") as write_file:
@@ -27,32 +31,46 @@ def readDB_writeJson(table, filter):
 
 def db_to_csv(table):
     cursor = connection.cursor()
-    query = "select * from {}".format(table)
+
+    if table != "classicmodels.products":
+        query = "select * from {} ".format(table)
+    else:
+        query = """
+        SELECT productCode, productName, productLine, productScale, productVendor, 
+        replace(replace(productDescription, '\n', ''), '\r', '') as productDescription,
+        quantityInStock, buyPrice, MSRP
+        FROM classicmodels.products
+        /* where productCode = 'S10_4698' */
+        """.format(table)
+
     cursor.execute(query)
     headers = [col[0] for col in cursor.description]
     rows = cursor.fetchall()
     print(headers)
 
     path_file = "/home/victor/IdeaProjects/classicmodelsDWH/classicModelsDWH_RealTime/resources/{}.csv".format(table.split(".")[1])
-    f = open(path_file, 'w')
+    with open(path_file, 'w') as file:
+        f = csv.writer(file, delimiter=',', quotechar='"', escapechar=' ', quoting=csv.QUOTE_NONNUMERIC, lineterminator='\n')
+        f.writerow(headers)
 
-    f.write(','.join(headers) + '\n')
+        for row in rows:
+            f.writerow(str(r) for r in row)
 
+    # print(rows[0][5])
     # for row in rows:
-    #     print(','.join(str(r) for r in row))
-    for row in rows:
-        f.write(','.join(str(r) for r in row) + '\n')
+    #     print(row)
 
-    f.close()
 
-    print("rows: {} written succesfully to file:{}".format(len(rows), f.name))
+    # f.close()
+
+    # print("rows: {} written succesfully to file:{}".format(len(rows), f.name))
 
 
 db_to_csv("classicmodels.products")
 db_to_csv("classicmodels.customers")
 db_to_csv("classicmodelsDWH.dim_time")
-# readDB_writeJson("classicmodels.orders", (10100, 10101, 10102))
-# readDB_writeJson("classicmodels.orderdetails", (10100, 10101, 10102))
+readDB_writeJson("classicmodels.orders", (10100, 10101, 10102))
+readDB_writeJson("classicmodels.orderdetails", (10100, 10101, 10102))
 
 
 connection.close()
@@ -95,5 +113,5 @@ connection.close()
 #
 
 
-# from 	orders as o
+# from     orders as o
 # orderdetails as od
